@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AiSqlAssistant.Api/AiSqlAssistant.Api.csproj" />
+  <Project Path="AiSqlAssistant.Client/AiSqlAssistant.Client.csproj" />
+</Solution>
