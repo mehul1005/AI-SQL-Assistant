@@ -1,8 +1,8 @@
-﻿# AI-SQL-Assistant
+# AI SQL Assistant
 
 An enterprise-grade, decoupled desktop application that translates natural language into executable T-SQL queries using open-source LLMs (Llama 3). 
 
-## Architecture
+## 🏗️ Architecture
 
 This project strictly follows separation of concerns, dividing the AI orchestration from the client presentation layer:
 
