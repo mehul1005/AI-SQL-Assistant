@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System.Data;
+using System.Windows;
+using System.Text.Json;
 
 namespace AiSqlAssistant.Client
 {
@@ -23,17 +25,55 @@ namespace AiSqlAssistant.Client
                 return;
             }
 
-            // Update UI to show loading state
+            // UI Loading State
             GenerateButton.IsEnabled = false;
-            GenerateButton.Content = "Thinking...";
-            OutputTextBox.Text = "-- Generating SQL query...";
+            GenerateButton.Content = "Executing...";
+            OutputTextBox.Text = "-- Generating and executing SQL...";
+            ResultsDataGrid.ItemsSource = null; // Clear previous results
 
-            // Call the ASP.NET Core API
-            string generatedSql = await _apiService.GetSqlAsync(prompt, schema);
+            // Call the API
+            var response = await _apiService.GetSqlAndDataAsync(prompt, schema);
 
-            // Update UI with result
-            OutputTextBox.Text = generatedSql;
-            GenerateButton.Content = "Generate SQL";
+            // Handle Errors
+            if (!string.IsNullOrEmpty(response.Error))
+            {
+                OutputTextBox.Text = $"-- ERROR: {response.Error}\n\n{response.GeneratedSql}";
+                GenerateButton.Content = "Execute AI Query";
+                GenerateButton.IsEnabled = true;
+                return;
+            }
+
+            // Display SQL Text
+            OutputTextBox.Text = response.GeneratedSql;
+
+            // Bind the dynamic JSON data to the WPF DataGrid
+            if (response.Data != null && response.Data.Count > 0)
+            {
+                DataTable dataTable = new DataTable();
+
+                // Create columns dynamically based on the first row's keys
+                foreach (var key in response.Data[0].Keys)
+                {
+                    dataTable.Columns.Add(key);
+                }
+
+                // Add the rows
+                foreach (var rowDict in response.Data)
+                {
+                    DataRow newRow = dataTable.NewRow();
+                    foreach (var kvp in rowDict)
+                    {
+                        // Convert JSON element to string for WPF display
+                        newRow[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
+                    }
+                    dataTable.Rows.Add(newRow);
+                }
+
+                ResultsDataGrid.ItemsSource = dataTable.DefaultView;
+            }
+
+            // Reset UI
+            GenerateButton.Content = "Execute AI Query";
             GenerateButton.IsEnabled = true;
         }
     }

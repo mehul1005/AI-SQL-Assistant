@@ -1,20 +1,23 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Windows;
+using System;
 
 namespace AiSqlAssistant.Client
 {
-    // Replicating the API response model
+    // Replicating the new API response model
     public class SqlGenerationResponse
     {
         public string GeneratedSql { get; set; } = string.Empty;
+        public string Error { get; set; } = string.Empty;
+        // Adding the Data array to match the backend JSON
+        public List<Dictionary<string, object>> Data { get; set; } = new List<Dictionary<string, object>>();
     }
 
     public class ApiService
     {
-        // Using a single instance of HttpClient is best practice
         private readonly HttpClient _httpClient;
 
         // IMPORTANT: Make sure this port matches the one in your API's launch profile! (e.g., 7092)
@@ -25,7 +28,8 @@ namespace AiSqlAssistant.Client
             _httpClient = new HttpClient();
         }
 
-        public async Task<string> GetSqlAsync(string prompt, string schema)
+        // Renamed method and changed return type to the full response object
+        public async Task<SqlGenerationResponse> GetSqlAndDataAsync(string prompt, string schema)
         {
             try
             {
@@ -35,7 +39,6 @@ namespace AiSqlAssistant.Client
                     DatabaseSchema = schema
                 };
 
-                // PostAsJsonAsync handles serialization automatically
                 var response = await _httpClient.PostAsJsonAsync(_apiUrl, requestPayload);
 
                 response.EnsureSuccessStatusCode();
@@ -43,15 +46,15 @@ namespace AiSqlAssistant.Client
                 var result = await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                return result?.GeneratedSql ?? "-- No SQL generated.";
+                return result ?? new SqlGenerationResponse { Error = "Failed to deserialize response." };
             }
             catch (HttpRequestException ex)
             {
-                return $"-- Error connecting to API: Is the ASP.NET Core server running?\n-- {ex.Message}";
+                return new SqlGenerationResponse { Error = $"Error connecting to API: Is the ASP.NET Core server running?\n{ex.Message}" };
             }
             catch (Exception ex)
             {
-                return $"-- An unexpected error occurred: {ex.Message}";
+                return new SqlGenerationResponse { Error = $"An unexpected error occurred: {ex.Message}" };
             }
         }
     }
