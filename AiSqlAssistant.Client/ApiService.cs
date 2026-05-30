@@ -28,19 +28,18 @@ namespace AiSqlAssistant.Client
             _httpClient = new HttpClient();
         }
 
-        // Renamed method and changed return type to the full response object
-        public async Task<SqlGenerationResponse> GetSqlAndDataAsync(string prompt, string schema)
+        // Change signature to only accept the prompt
+        public async Task<SqlGenerationResponse> GetSqlAndDataAsync(string prompt)
         {
             try
             {
+                // Remove DatabaseSchema from the payload
                 var requestPayload = new
                 {
-                    UserPrompt = prompt,
-                    DatabaseSchema = schema
+                    UserPrompt = prompt
                 };
 
                 var response = await _httpClient.PostAsJsonAsync(_apiUrl, requestPayload);
-
                 response.EnsureSuccessStatusCode();
 
                 var result = await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(
@@ -50,7 +49,7 @@ namespace AiSqlAssistant.Client
             }
             catch (HttpRequestException ex)
             {
-                return new SqlGenerationResponse { Error = $"Error connecting to API: Is the ASP.NET Core server running?\n{ex.Message}" };
+                return new SqlGenerationResponse { Error = $"Error connecting to API:\n{ex.Message}" };
             }
             catch (Exception ex)
             {

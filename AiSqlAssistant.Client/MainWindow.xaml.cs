@@ -16,7 +16,6 @@ namespace AiSqlAssistant.Client
 
         private async void GenerateButton_Click(object sender, RoutedEventArgs e)
         {
-            string schema = SchemaTextBox.Text;
             string prompt = PromptTextBox.Text;
 
             if (string.IsNullOrWhiteSpace(prompt))
@@ -28,11 +27,11 @@ namespace AiSqlAssistant.Client
             // UI Loading State
             GenerateButton.IsEnabled = false;
             GenerateButton.Content = "Executing...";
-            OutputTextBox.Text = "-- Generating and executing SQL...";
+            OutputTextBox.Text = "-- Discovering schema and executing SQL...";
             ResultsDataGrid.ItemsSource = null; // Clear previous results
 
-            // Call the API
-            var response = await _apiService.GetSqlAndDataAsync(prompt, schema);
+            // Call the API (Only passing the prompt now!)
+            var response = await _apiService.GetSqlAndDataAsync(prompt);
 
             // Handle Errors
             if (!string.IsNullOrEmpty(response.Error))
@@ -49,7 +48,7 @@ namespace AiSqlAssistant.Client
             // Bind the dynamic JSON data to the WPF DataGrid
             if (response.Data != null && response.Data.Count > 0)
             {
-                DataTable dataTable = new DataTable();
+                System.Data.DataTable dataTable = new System.Data.DataTable();
 
                 // Create columns dynamically based on the first row's keys
                 foreach (var key in response.Data[0].Keys)
@@ -60,10 +59,9 @@ namespace AiSqlAssistant.Client
                 // Add the rows
                 foreach (var rowDict in response.Data)
                 {
-                    DataRow newRow = dataTable.NewRow();
+                    System.Data.DataRow newRow = dataTable.NewRow();
                     foreach (var kvp in rowDict)
                     {
-                        // Convert JSON element to string for WPF display
                         newRow[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
                     }
                     dataTable.Rows.Add(newRow);

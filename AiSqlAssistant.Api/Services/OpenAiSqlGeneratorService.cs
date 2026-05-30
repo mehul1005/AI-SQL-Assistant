@@ -1,7 +1,11 @@
 ﻿using AiSqlAssistant.Api.Models;
 using OpenAI.Interfaces;
 using OpenAI.ObjectModels.RequestModels;
-using OpenAI.ObjectModels;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace AiSqlAssistant.Api.Services
 {
@@ -16,17 +20,19 @@ namespace AiSqlAssistant.Api.Services
             _logger = logger;
         }
 
-        public async Task<SqlGenerationResponse> GenerateSqlAsync(SqlGenerationRequest request)
+        // Updated signature: takes prompt and schema as strings, returns a string
+        public async Task<string> GenerateSqlAsync(string prompt, string schema)
         {
-            _logger.LogInformation("Generating SQL for prompt: {Prompt}", request.UserPrompt);
+            _logger.LogInformation("Generating SQL for prompt: {Prompt}", prompt);
 
+            // Injecting the dynamically discovered schema
             var systemMessage = $@"
-                You are an expert SQL Server developer. 
-                Generate raw, executable T-SQL based on the user's request.
+                You are an expert SQL developer. 
+                Generate raw, executable SQL based on the user's request.
                 Do not include markdown formatting like ```sql.
                 Only return the SQL query, nothing else.
                 Here is the current database schema to query against:
-                {request.DatabaseSchema}
+                {schema}
             ";
 
             var completionResult = await _openAiService.ChatCompletion.CreateCompletion(new ChatCompletionCreateRequest
@@ -34,7 +40,7 @@ namespace AiSqlAssistant.Api.Services
                 Messages = new List<ChatMessage>
                 {
                     ChatMessage.FromSystem(systemMessage),
-                    ChatMessage.FromUser(request.UserPrompt)
+                    ChatMessage.FromUser(prompt)
                 },
                 Model = "llama-3.3-70b-versatile",
                 Temperature = 0.1f
@@ -42,8 +48,7 @@ namespace AiSqlAssistant.Api.Services
 
             if (completionResult.Successful)
             {
-                var rawSql = completionResult.Choices.First().Message.Content;
-                return new SqlGenerationResponse { GeneratedSql = rawSql!.Trim() };
+                return completionResult.Choices.First().Message.Content?.Trim() ?? string.Empty;
             }
 
             _logger.LogError("OpenAI API failed: {Error}", completionResult.Error?.Message);

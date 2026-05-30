@@ -4,6 +4,6 @@ namespace AiSqlAssistant.Api.Services
 {
     public interface ISqlGeneratorService
     {
-        Task<SqlGenerationResponse> GenerateSqlAsync(SqlGenerationRequest request);
+        Task<string> GenerateSqlAsync(string prompt, string schema);
     }
 }
