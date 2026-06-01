@@ -4,6 +4,7 @@ using AiSqlAssistant.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Text.RegularExpressions; // 1. Added Regex for security scanning
 
 namespace AiSqlAssistant.Api.Controllers
 {
@@ -28,14 +29,13 @@ namespace AiSqlAssistant.Api.Controllers
                 return BadRequest("Prompt cannot be empty.");
             }
 
-            // --- NEW: DYNAMIC SCHEMA DISCOVERY ---
+            // --- DYNAMIC SCHEMA DISCOVERY ---
             var schemaBuilder = new System.Text.StringBuilder();
             try
             {
                 using var connection = _dbContext.Database.GetDbConnection();
                 await connection.OpenAsync();
 
-                // Query SQLite's internal master table for the exact CREATE TABLE statements
                 using var schemaCommand = connection.CreateCommand();
                 schemaCommand.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";
 
@@ -45,7 +45,7 @@ namespace AiSqlAssistant.Api.Controllers
                     if (!schemaReader.IsDBNull(0))
                     {
                         schemaBuilder.AppendLine(schemaReader.GetString(0));
-                        schemaBuilder.AppendLine(";"); // Add a semicolon for clean formatting
+                        schemaBuilder.AppendLine(";");
                     }
                 }
             }
@@ -55,23 +55,34 @@ namespace AiSqlAssistant.Api.Controllers
             }
 
             string discoveredSchema = schemaBuilder.ToString();
+            // --- END SCHEMA DISCOVERY ---
 
-            // --- END DYNAMIC SCHEMA DISCOVERY ---
-
-            // 1. Generate the SQL string via Groq/Llama (We pass the discovered schema manually now)
-            // NOTE: You may need to update your ISqlGeneratorService interface to accept (UserPrompt, DiscoveredSchema)
+            // 1. Generate the SQL string
             string sqlQuery = await _sqlGeneratorService.GenerateSqlAsync(request.UserPrompt, discoveredSchema);
-
-            // Clean up any markdown code blocks the LLM might have wrapped the query in
             sqlQuery = sqlQuery.Replace("```sql", "").Replace("```", "").Trim();
 
-            // 2. Dynamically execute the raw SQL against our SQLite database
+            // --- NEW: PHASE 4 SECURITY LAYER ---
+            // We use \b (word boundaries) so we don't accidentally block a column named "DropoffTime"
+            string forbiddenPattern = @"\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC|EXECUTE|GRANT|REVOKE)\b";
+
+            if (Regex.IsMatch(sqlQuery, forbiddenPattern, RegexOptions.IgnoreCase))
+            {
+                // Abort execution and return a security warning to the client
+                return Ok(new
+                {
+                    GeneratedSql = sqlQuery,
+                    Error = "SECURITY ALERT: Destructive DML/DDL query detected and blocked. This agent is restricted to read-only SELECT statements.",
+                    Data = Array.Empty<object>()
+                });
+            }
+            // --- END SECURITY LAYER ---
+
+            // 2. Execute the safe SQL against SQLite
             var queryRows = new List<Dictionary<string, object>>();
 
             try
             {
                 using var connection = _dbContext.Database.GetDbConnection();
-                // Check if connection is already open from our schema query
                 if (connection.State != ConnectionState.Open)
                     await connection.OpenAsync();
 
