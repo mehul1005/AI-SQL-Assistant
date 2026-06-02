@@ -1,6 +1,5 @@
 ﻿using System.Data;
 using System.Windows;
-using System.Text.Json;
 
 namespace AiSqlAssistant.Client
 {
@@ -14,65 +13,66 @@ namespace AiSqlAssistant.Client
             _apiService = new ApiService();
         }
 
+        // STEP 1: GENERATE ONLY
         private async void GenerateButton_Click(object sender, RoutedEventArgs e)
         {
-            string prompt = PromptTextBox.Text;
+            if (string.IsNullOrWhiteSpace(PromptTextBox.Text)) return;
 
-            if (string.IsNullOrWhiteSpace(prompt))
+            GenerateButton.IsEnabled = false;
+            ExecuteButton.IsEnabled = false;
+            OutputTextBox.Text = "-- Generating SQL...";
+            ResultsDataGrid.ItemsSource = null;
+
+            var response = await _apiService.GenerateSqlAsync(PromptTextBox.Text);
+
+            if (!string.IsNullOrEmpty(response.Error))
+                OutputTextBox.Text = $"-- ERROR: {response.Error}";
+            else
             {
-                MessageBox.Show("Please enter a prompt.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
+                OutputTextBox.Text = response.GeneratedSql;
+                ExecuteButton.IsEnabled = true; // Unlock Step 2!
             }
 
-            // UI Loading State
-            GenerateButton.IsEnabled = false;
-            GenerateButton.Content = "Executing...";
-            OutputTextBox.Text = "-- Discovering schema and executing SQL...";
-            ResultsDataGrid.ItemsSource = null; // Clear previous results
+            GenerateButton.IsEnabled = true;
+        }
 
-            // Call the API (Only passing the prompt now!)
-            var response = await _apiService.GetSqlAndDataAsync(prompt);
+        // STEP 2: APPROVE & EXECUTE
+        private async void ExecuteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(OutputTextBox.Text)) return;
 
-            // Handle Errors
+            ExecuteButton.IsEnabled = false;
+            string approvedSql = OutputTextBox.Text; // Grab the user-reviewed text!
+
+            var response = await _apiService.ExecuteSqlAsync(approvedSql);
+
             if (!string.IsNullOrEmpty(response.Error))
             {
-                OutputTextBox.Text = $"-- ERROR: {response.Error}\n\n{response.GeneratedSql}";
-                GenerateButton.Content = "Execute AI Query";
-                GenerateButton.IsEnabled = true;
+                MessageBox.Show(response.Error, "Security/Execution Alert", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ExecuteButton.IsEnabled = true;
                 return;
             }
 
-            // Display SQL Text
-            OutputTextBox.Text = response.GeneratedSql;
-
-            // Bind the dynamic JSON data to the WPF DataGrid
+            // Bind the DataGrid
             if (response.Data != null && response.Data.Count > 0)
             {
-                System.Data.DataTable dataTable = new System.Data.DataTable();
-
-                // Create columns dynamically based on the first row's keys
-                foreach (var key in response.Data[0].Keys)
-                {
-                    dataTable.Columns.Add(key);
-                }
-
-                // Add the rows
+                DataTable dataTable = new DataTable();
+                foreach (var key in response.Data[0].Keys) dataTable.Columns.Add(key);
                 foreach (var rowDict in response.Data)
                 {
-                    System.Data.DataRow newRow = dataTable.NewRow();
-                    foreach (var kvp in rowDict)
-                    {
-                        newRow[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
-                    }
+                    DataRow newRow = dataTable.NewRow();
+                    foreach (var kvp in rowDict) newRow[kvp.Key] = kvp.Value?.ToString() ?? string.Empty;
                     dataTable.Rows.Add(newRow);
                 }
-
                 ResultsDataGrid.ItemsSource = dataTable.DefaultView;
             }
+            else
+            {
+                ResultsDataGrid.ItemsSource = null;
+                MessageBox.Show("Query executed successfully, but returned 0 rows.", "No Data", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
 
-            // Reset UI
-            GenerateButton.Content = "Execute AI Query";
-            GenerateButton.IsEnabled = true;
+            ExecuteButton.IsEnabled = true;
         }
     }
 }

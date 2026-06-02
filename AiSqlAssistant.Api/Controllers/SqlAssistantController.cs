@@ -4,7 +4,7 @@ using AiSqlAssistant.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
-using System.Text.RegularExpressions; // 1. Added Regex for security scanning
+using System.Text.RegularExpressions;
 
 namespace AiSqlAssistant.Api.Controllers
 {
@@ -21,13 +21,11 @@ namespace AiSqlAssistant.Api.Controllers
             _dbContext = dbContext;
         }
 
-        [HttpPost("generate-sql")]
-        public async Task<IActionResult> GenerateAndExecuteSql([FromBody] SqlGenerationRequest request)
+        [HttpPost("generate")]
+        public async Task<IActionResult> GenerateSql([FromBody] SqlGenerationRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.UserPrompt))
-            {
                 return BadRequest("Prompt cannot be empty.");
-            }
 
             // --- DYNAMIC SCHEMA DISCOVERY ---
             var schemaBuilder = new System.Text.StringBuilder();
@@ -35,10 +33,8 @@ namespace AiSqlAssistant.Api.Controllers
             {
                 using var connection = _dbContext.Database.GetDbConnection();
                 await connection.OpenAsync();
-
                 using var schemaCommand = connection.CreateCommand();
                 schemaCommand.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";
-
                 using var schemaReader = await schemaCommand.ExecuteReaderAsync();
                 while (await schemaReader.ReadAsync())
                 {
@@ -54,20 +50,26 @@ namespace AiSqlAssistant.Api.Controllers
                 return StatusCode(500, $"Failed to discover database schema: {ex.Message}");
             }
 
-            string discoveredSchema = schemaBuilder.ToString();
-            // --- END SCHEMA DISCOVERY ---
-
             // 1. Generate the SQL string
-            string sqlQuery = await _sqlGeneratorService.GenerateSqlAsync(request.UserPrompt, discoveredSchema);
+            string sqlQuery = await _sqlGeneratorService.GenerateSqlAsync(request.UserPrompt, schemaBuilder.ToString());
             sqlQuery = sqlQuery.Replace("```sql", "").Replace("```", "").Trim();
 
-            // --- NEW: PHASE 4 SECURITY LAYER ---
-            // We use \b (word boundaries) so we don't accidentally block a column named "DropoffTime"
-            string forbiddenPattern = @"\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC|EXECUTE|GRANT|REVOKE)\b";
+            // Return ONLY the generated SQL (No execution yet)
+            return Ok(new { GeneratedSql = sqlQuery });
+        }
 
-            if (Regex.IsMatch(sqlQuery, forbiddenPattern, RegexOptions.IgnoreCase))
+        [HttpPost("execute")]
+        public async Task<IActionResult> ExecuteSql([FromBody] SqlExecutionRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.SqlQuery))
+                return BadRequest("SQL query cannot be empty.");
+
+            string sqlQuery = request.SqlQuery.Trim();
+
+            // --- PHASE 4 SECURITY LAYER (Protects against AI AND Human edits) ---
+            string forbiddenPattern = @"\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC|EXECUTE|GRANT|REVOKE)\b";
+            if (System.Text.RegularExpressions.Regex.IsMatch(sqlQuery, forbiddenPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
             {
-                // Abort execution and return a security warning to the client
                 return Ok(new
                 {
                     GeneratedSql = sqlQuery,
@@ -75,15 +77,13 @@ namespace AiSqlAssistant.Api.Controllers
                     Data = Array.Empty<object>()
                 });
             }
-            // --- END SECURITY LAYER ---
 
             // 2. Execute the safe SQL against SQLite
             var queryRows = new List<Dictionary<string, object>>();
-
             try
             {
                 using var connection = _dbContext.Database.GetDbConnection();
-                if (connection.State != ConnectionState.Open)
+                if (connection.State != System.Data.ConnectionState.Open)
                     await connection.OpenAsync();
 
                 using var command = connection.CreateCommand();

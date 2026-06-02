@@ -19,42 +19,38 @@ namespace AiSqlAssistant.Client
     public class ApiService
     {
         private readonly HttpClient _httpClient;
-
-        // IMPORTANT: Make sure this port matches the one in your API's launch profile! (e.g., 7092)
-        private readonly string _apiUrl = "https://localhost:7092/api/SqlAssistant/generate-sql";
+        // Base URL (Make sure the port is correct!)
+        private readonly string _baseUrl = "https://localhost:7092/api/SqlAssistant";
 
         public ApiService()
         {
             _httpClient = new HttpClient();
         }
 
-        // Change signature to only accept the prompt
-        public async Task<SqlGenerationResponse> GetSqlAndDataAsync(string prompt)
+        // Phase 5: Step 1 - Generate
+        public async Task<SqlGenerationResponse> GenerateSqlAsync(string prompt)
         {
             try
             {
-                // Remove DatabaseSchema from the payload
-                var requestPayload = new
-                {
-                    UserPrompt = prompt
-                };
-
-                var response = await _httpClient.PostAsJsonAsync(_apiUrl, requestPayload);
+                var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/generate", new { UserPrompt = prompt });
                 response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                       ?? new SqlGenerationResponse { Error = "Deserialization failed." };
+            }
+            catch (Exception ex) { return new SqlGenerationResponse { Error = $"API Error: {ex.Message}" }; }
+        }
 
-                var result = await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                return result ?? new SqlGenerationResponse { Error = "Failed to deserialize response." };
-            }
-            catch (HttpRequestException ex)
+        // Phase 5: Step 2 - Execute
+        public async Task<SqlGenerationResponse> ExecuteSqlAsync(string sql)
+        {
+            try
             {
-                return new SqlGenerationResponse { Error = $"Error connecting to API:\n{ex.Message}" };
+                var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/execute", new { SqlQuery = sql });
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                       ?? new SqlGenerationResponse { Error = "Deserialization failed." };
             }
-            catch (Exception ex)
-            {
-                return new SqlGenerationResponse { Error = $"An unexpected error occurred: {ex.Message}" };
-            }
+            catch (Exception ex) { return new SqlGenerationResponse { Error = $"API Error: {ex.Message}" }; }
         }
     }
 }
