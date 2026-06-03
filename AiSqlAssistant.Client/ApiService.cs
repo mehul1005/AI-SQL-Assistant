@@ -7,12 +7,21 @@ using System;
 
 namespace AiSqlAssistant.Client
 {
-    // Replicating the new API response model
+    // 1. Add the Risk Profile model to the client
+    public class QueryRiskProfile
+    {
+        public string RiskLevel { get; set; } = "LOW";
+        public string Operation { get; set; } = "UNKNOWN";
+        public List<string> AffectedTables { get; set; } = new List<string>();
+        public bool IsExecutionBlocked { get; set; } = false;
+    }
+
+    // 2. Update the Response model to include it
     public class SqlGenerationResponse
     {
         public string GeneratedSql { get; set; } = string.Empty;
         public string Error { get; set; } = string.Empty;
-        // Adding the Data array to match the backend JSON
+        public QueryRiskProfile RiskProfile { get; set; } = new QueryRiskProfile(); // Added!
         public List<Dictionary<string, object>> Data { get; set; } = new List<Dictionary<string, object>>();
     }
 

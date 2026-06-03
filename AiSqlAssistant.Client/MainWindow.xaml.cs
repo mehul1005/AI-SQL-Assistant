@@ -26,11 +26,26 @@ namespace AiSqlAssistant.Client
             var response = await _apiService.GenerateSqlAsync(PromptTextBox.Text);
 
             if (!string.IsNullOrEmpty(response.Error))
+            {
                 OutputTextBox.Text = $"-- ERROR: {response.Error}";
+                RiskDashboard.Visibility = Visibility.Collapsed;
+            }
             else
             {
                 OutputTextBox.Text = response.GeneratedSql;
-                ExecuteButton.IsEnabled = true; // Unlock Step 2!
+
+                // Populate the Risk Dashboard
+                RiskDashboard.Visibility = Visibility.Visible;
+                OperationText.Text = response.RiskProfile.Operation;
+                TablesText.Text = string.Join(", ", response.RiskProfile.AffectedTables);
+                RiskText.Text = response.RiskProfile.RiskLevel;
+
+                // Color code the Risk Badge
+                if (response.RiskProfile.RiskLevel == "LOW") RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#10B981")); // Green
+                else if (response.RiskProfile.RiskLevel == "MEDIUM") RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F59E0B")); // Yellow
+                else RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#EF4444")); // Red
+
+                ExecuteButton.IsEnabled = !response.RiskProfile.IsExecutionBlocked; // Keep Execute locked if CRITICAL!
             }
 
             GenerateButton.IsEnabled = true;

@@ -50,12 +50,17 @@ namespace AiSqlAssistant.Api.Controllers
                 return StatusCode(500, $"Failed to discover database schema: {ex.Message}");
             }
 
-            // 1. Generate the SQL string
             string sqlQuery = await _sqlGeneratorService.GenerateSqlAsync(request.UserPrompt, schemaBuilder.ToString());
             sqlQuery = sqlQuery.Replace("```sql", "").Replace("```", "").Trim();
 
-            // Return ONLY the generated SQL (No execution yet)
-            return Ok(new { GeneratedSql = sqlQuery });
+            // Generate the Risk Profile!
+            var riskProfile = QueryRiskAnalyzer.Analyze(sqlQuery);
+
+            return Ok(new
+            {
+                GeneratedSql = sqlQuery,
+                RiskProfile = riskProfile // Attach the metadata to the JSON response
+            });
         }
 
         [HttpPost("execute")]
