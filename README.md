@@ -1,6 +1,6 @@
 # AI SQL Assistant
 
-An enterprise-grade, decoupled desktop application that translates natural language into executable T-SQL queries using open-source LLMs (Llama 3.3). It features dynamic database schema discovery, a strict Regex security layer, a custom risk-analyzer engine, and a "Human-in-the-Loop" (HITL) execution workflow.
+An enterprise-grade, decoupled desktop application that translates natural language into executable T-SQL queries using open-source LLMs (Llama 3.3). It features dynamic database schema discovery, a strict Regex security layer, a custom risk-analyzer engine, a "Human-in-the-Loop" (HITL) execution workflow, and comprehensive audit logging.
 
 ## 🏗️ Enterprise Architecture
 
@@ -14,12 +14,14 @@ graph TD
         Review[HITL Review Screen]
         DataGrid[Dynamic DataGrid]
         RiskDash[Risk Dashboard]
+        AuditUI[WPF Audit Log Viewer]
     end
 
     %% Define API Layer
     subgraph ASP.NET Core 8 Web API
         Generate["/api/SqlAssistant/generate"]
         Execute["/api/SqlAssistant/execute"]
+        AuditAPI["/api/SqlAssistant/audit-logs"]
         RiskService[Query Risk Analyzer]
         Security[Regex Security Interceptor]
         EF[Entity Framework Core]
@@ -28,7 +30,7 @@ graph TD
     %% Define External & Data Layer
     subgraph Infrastructure
         LLM((Groq / Llama 3.3))
-        SQLite[(SQLite Sandbox)]
+        SQLite[(SQLite Sandbox + Audit Tables)]
     end
 
     %% Generation Flow
@@ -51,6 +53,13 @@ graph TD
     EF -- "11. JSON Response" --> Execute
     Execute -- "12. Render Data" --> DataGrid
 
+    %% Audit & Governance Flow
+    RiskService -. "Log Analyzer Blocks" .-> EF
+    Security -. "Log Malicious Edits" .-> EF
+    Execute -. "Log Execution Time" .-> EF
+    AuditUI -- "Fetch History" --> AuditAPI
+    AuditAPI -- "Query Logs" --> EF
+
     %% Styling
     classDef secure fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#000;
     classDef external fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,color:#000;
@@ -61,6 +70,7 @@ graph TD
 
 ## 🚀 Core Features
 
+* **Enterprise Audit Logging:** A dual-layer governance pipeline that silently records every interaction. It tracks successful query execution times (ms), logs `BLOCKED_BY_ANALYZER` events if the AI hallucinates a destructive query, and logs `BLOCKED_SECURITY` events if a human attempts a malicious edit. Logs are viewable in a dedicated WPF UI.
 * **Dynamic Schema Discovery (Context Injection):** The backend interrogates internal SQLite metadata (`sqlite_master`) to dynamically extract exact `CREATE TABLE` DDL structures at runtime. This context is seamlessly injected into the LLM system prompt.
 * **Query Risk Analyzer:** Before presenting the SQL to the user, the API parses the query, maps out the execution path, identifies affected tables, and calculates a risk score (LOW/MEDIUM/CRITICAL) for visual display.
 * **Human-in-the-Loop (HITL) Workflow:** Queries are never executed blindly. The API returns the raw SQL to the client, forcing the user to review, modify, and manually approve the query.
@@ -86,6 +96,7 @@ graph TD
 
 1. Clone this repository.
 2. Navigate to `AiSqlAssistant.Api/appsettings.json` and insert your API key:
+
 ```json
 "OpenAI": {
   "ApiKey": "gsk_YOUR_API_KEY_HERE"
@@ -93,7 +104,5 @@ graph TD
 
 ```
 
-
 3. Set both `AiSqlAssistant.Api` and `AiSqlAssistant.Client` as startup projects in Visual Studio.
 4. Run the solution (**F5**). The API will automatically provision the SQLite database sandbox and seed sample data on launch.
-
