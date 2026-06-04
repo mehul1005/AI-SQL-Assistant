@@ -15,12 +15,18 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
+
             <TextBox x:Name="PromptTextBox" Grid.Column="0" Height="50" TextWrapping="Wrap" AcceptsReturn="True" 
                      Padding="10" FontSize="14" Margin="0,0,15,0"
                      Text="Show me all applications assigned to PC."/>
+
             <Button x:Name="GenerateButton" Grid.Column="1" Content="1. Generate SQL" Width="160" Height="50" 
-                    Background="#3B82F6" Foreground="White" FontWeight="Bold" FontSize="14" Click="GenerateButton_Click"/>
+                    Background="#3B82F6" Foreground="White" FontWeight="Bold" FontSize="14" Click="GenerateButton_Click" Margin="0,0,10,0"/>
+
+            <Button x:Name="ViewLogsButton" Grid.Column="2" Content="View Audit Logs" Width="130" Height="50" 
+                    Background="#4B5563" Foreground="White" FontWeight="Bold" FontSize="13" Click="ViewLogsButton_Click"/>
         </Grid>
 
         <Border x:Name="RiskDashboard" Grid.Row="1" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,15" Visibility="Collapsed">

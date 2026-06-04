@@ -57,9 +57,10 @@ namespace AiSqlAssistant.Client
             if (string.IsNullOrWhiteSpace(OutputTextBox.Text)) return;
 
             ExecuteButton.IsEnabled = false;
-            string approvedSql = OutputTextBox.Text; // Grab the user-reviewed text!
+            string approvedSql = OutputTextBox.Text;
 
-            var response = await _apiService.ExecuteSqlAsync(approvedSql);
+            // Pass the original prompt and risk level down for the Audit Log!
+            var response = await _apiService.ExecuteSqlAsync(approvedSql, PromptTextBox.Text, RiskText.Text);
 
             if (!string.IsNullOrEmpty(response.Error))
             {
@@ -88,6 +89,15 @@ namespace AiSqlAssistant.Client
             }
 
             ExecuteButton.IsEnabled = true;
+        }
+
+        private void ViewLogsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var logWindow = new AuditLogWindow
+            {
+                Owner = this
+            };
+            logWindow.ShowDialog();
         }
     }
 }

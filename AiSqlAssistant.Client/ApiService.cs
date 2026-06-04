@@ -7,6 +7,20 @@ using System;
 
 namespace AiSqlAssistant.Client
 {
+    // 0. Added the Audit Log model
+    public class AuditLog
+    {
+        public int Id { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string UserPrompt { get; set; } = string.Empty;
+        public string GeneratedSql { get; set; } = string.Empty;
+        public string RiskLevel { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public long ExecutionDurationMs { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string ErrorMessage { get; set; } = string.Empty;
+    }
+
     // 1. Add the Risk Profile model to the client
     public class QueryRiskProfile
     {
@@ -49,17 +63,42 @@ namespace AiSqlAssistant.Client
             catch (Exception ex) { return new SqlGenerationResponse { Error = $"API Error: {ex.Message}" }; }
         }
 
-        // Phase 5: Step 2 - Execute
-        public async Task<SqlGenerationResponse> ExecuteSqlAsync(string sql)
+        // Phase 5/7: Step 2 - Execute (Now passing audit context)
+        public async Task<SqlGenerationResponse> ExecuteSqlAsync(string sql, string originalPrompt, string riskLevel)
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/execute", new { SqlQuery = sql });
+                var payload = new
+                {
+                    SqlQuery = sql,
+                    OriginalPrompt = originalPrompt,
+                    RiskLevel = riskLevel
+                };
+
+                var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/execute", payload);
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                        ?? new SqlGenerationResponse { Error = "Deserialization failed." };
             }
             catch (Exception ex) { return new SqlGenerationResponse { Error = $"API Error: {ex.Message}" }; }
+        }
+
+        public async Task<List<AuditLog>> GetAuditLogsAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/audit-logs");
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadFromJsonAsync<List<AuditLog>>(
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                    ?? new List<AuditLog>();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to load logs: {ex.Message}");
+                return new List<AuditLog>();
+            }
         }
     }
 }

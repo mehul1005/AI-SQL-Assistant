@@ -1,14 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AiSqlAssistant.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiSqlAssistant.Api.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options)
-        {
-        }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-        // No DbSets needed here! We will use raw ADO.NET underneath EF Core for dynamic execution.
+        // Automatically creates the AuditLogs table in SQLite
+        public DbSet<AuditLog> AuditLogs { get; set; }
     }
 }
