@@ -18,6 +18,9 @@ namespace AiSqlAssistant.Client
         {
             if (string.IsNullOrWhiteSpace(PromptTextBox.Text)) return;
 
+            // 1. Set Identity!
+            _apiService.SetApiKey(ApiKeyTextBox.Text);
+
             GenerateButton.IsEnabled = false;
             ExecuteButton.IsEnabled = false;
             OutputTextBox.Text = "-- Generating SQL...";
@@ -56,6 +59,9 @@ namespace AiSqlAssistant.Client
         {
             if (string.IsNullOrWhiteSpace(OutputTextBox.Text)) return;
 
+            // 1. Set Identity!
+            _apiService.SetApiKey(ApiKeyTextBox.Text);
+
             ExecuteButton.IsEnabled = false;
             string approvedSql = OutputTextBox.Text;
 
@@ -93,7 +99,8 @@ namespace AiSqlAssistant.Client
 
         private void ViewLogsButton_Click(object sender, RoutedEventArgs e)
         {
-            var logWindow = new AuditLogWindow
+            // Pass the API Key from the textbox into the new window!
+            var logWindow = new AuditLogWindow(ApiKeyTextBox.Text)
             {
                 Owner = this
             };

@@ -1,5 +1,6 @@
 using AiSqlAssistant.Api.Data;
 using AiSqlAssistant.Api.Services;
+using AiSqlAssistant.Api.Middleware;
 using Microsoft.EntityFrameworkCore;
 using OpenAI.Extensions;
 
@@ -72,5 +73,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
+
+// --- API KEY SECURITY MIDDLEWARE ---
+// This must run before MapControllers so it protects all endpoints!
+app.UseMiddleware<ApiKeyAuthMiddleware>();
+// ----------------------------------------
+
 app.MapControllers();
 app.Run();

@@ -42,12 +42,21 @@ namespace AiSqlAssistant.Client
     public class ApiService
     {
         private readonly HttpClient _httpClient;
-        // Base URL (Make sure the port is correct!)
         private readonly string _baseUrl = "https://localhost:7092/api/SqlAssistant";
 
         public ApiService()
         {
             _httpClient = new HttpClient();
+        }
+
+        // --- Set API Key METHOD ---
+        public void SetApiKey(string apiKey)
+        {
+            _httpClient.DefaultRequestHeaders.Remove("x-api-key");
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey.Trim());
+            }
         }
 
         // Phase 5: Step 1 - Generate

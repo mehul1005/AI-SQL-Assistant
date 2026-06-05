@@ -6,11 +6,17 @@ namespace AiSqlAssistant.Client
     {
         private readonly ApiService _apiService;
 
-        public AuditLogWindow()
+        // Updated constructor to require the API Key
+        public AuditLogWindow(string currentApiKey)
         {
             InitializeComponent();
             _apiService = new ApiService();
-            LoadLogs(); // Fetch data
+
+            // 1. Set the identity immediately 
+            _apiService.SetApiKey(currentApiKey);
+
+            // 2. Now it is safe to fetch the protected data
+            LoadLogs();
         }
 
         private async void LoadLogs()

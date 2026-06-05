@@ -16,10 +16,13 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50"/>
                 <DataGridTextColumn Header="Timestamp" Binding="{Binding Timestamp, StringFormat=\{0:yyyy-MM-dd HH:mm:ss\}}" Width="140"/>
-                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" FontWeight="SemiBold"/>
+
+                <DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="120" FontWeight="SemiBold" Foreground="#2563EB"/>
+
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="140" FontWeight="SemiBold"/>
                 <DataGridTextColumn Header="Risk" Binding="{Binding RiskLevel}" Width="80"/>
                 <DataGridTextColumn Header="Duration (ms)" Binding="{Binding ExecutionDurationMs}" Width="100"/>
-                <DataGridTextColumn Header="Prompt" Binding="{Binding UserPrompt}" Width="250"/>
+                <DataGridTextColumn Header="Prompt" Binding="{Binding UserPrompt}" Width="200"/>
                 <DataGridTextColumn Header="SQL" Binding="{Binding GeneratedSql}" Width="*"/>
             </DataGrid.Columns>
         </DataGrid>

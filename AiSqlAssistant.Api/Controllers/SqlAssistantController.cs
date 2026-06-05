@@ -66,7 +66,8 @@ namespace AiSqlAssistant.Api.Controllers
                     RiskLevel = riskProfile.RiskLevel,
                     Status = "BLOCKED_BY_ANALYZER", // Distinct status for generation-blocks
                     ExecutionDurationMs = 0, // 0 because it never reached the DB execution
-                    ErrorMessage = "Query execution was locked by the Risk Analyzer."
+                    ErrorMessage = "Query execution was locked by the Risk Analyzer.",
+                    UserName = HttpContext.User.Identity?.Name ?? "Unknown"
                 };
 
                 _dbContext.AuditLogs.Add(auditRecord);
@@ -90,7 +91,8 @@ namespace AiSqlAssistant.Api.Controllers
             {
                 UserPrompt = request.OriginalPrompt ?? "Unknown",
                 GeneratedSql = sqlQuery,
-                RiskLevel = request.RiskLevel ?? "UNKNOWN"
+                RiskLevel = request.RiskLevel ?? "UNKNOWN",
+                UserName = HttpContext.User.Identity?.Name ?? "Unknown"
             };
 
             // Security Interceptor
