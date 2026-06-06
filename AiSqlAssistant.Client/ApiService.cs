@@ -42,7 +42,10 @@ namespace AiSqlAssistant.Client
     public class ApiService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _baseUrl = "https://localhost:7092/api/SqlAssistant";
+
+        //private readonly string _baseUrl = "https://localhost:7092/api/SqlAssistant";
+
+        private readonly string _baseUrl = "https://aisqlassistant-api-2026-ffhgaedhabhuddbz.centralindia-01.azurewebsites.net/api/SqlAssistant";
 
         public ApiService()
         {
