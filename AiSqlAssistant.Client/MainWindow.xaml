@@ -25,6 +25,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <TextBox x:Name="PromptTextBox" Grid.Column="0" Height="50" TextWrapping="Wrap" AcceptsReturn="True" 
@@ -35,7 +36,10 @@
                     Background="#3B82F6" Foreground="White" FontWeight="Bold" FontSize="14" Click="GenerateButton_Click" Margin="0,0,10,0"/>
 
             <Button x:Name="ViewLogsButton" Grid.Column="2" Content="View Audit Logs" Width="130" Height="50" 
-                    Background="#4B5563" Foreground="White" FontWeight="Bold" FontSize="13" Click="ViewLogsButton_Click"/>
+                    Background="#4B5563" Foreground="White" FontWeight="Bold" FontSize="13" Click="ViewLogsButton_Click" Margin="0,0,10,0"/>
+
+            <Button x:Name="ViewAnalyticsButton" Grid.Column="3" Content="Analytics" Width="100" Height="50" Background="#8B5CF6" Foreground="White" 
+                    FontWeight="Bold" FontSize="13" Click="ViewAnalyticsButton_Click"/>
         </Grid>
 
         <Border x:Name="RiskDashboard" Grid.Row="2" Background="#F3F4F6" BorderBrush="#D1D5DB" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,15" Visibility="Collapsed">

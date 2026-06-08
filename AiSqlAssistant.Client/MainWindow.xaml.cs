@@ -106,5 +106,15 @@ namespace AiSqlAssistant.Client
             };
             logWindow.ShowDialog();
         }
+
+        private void ViewAnalyticsButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Open the dashboard, passing the API Key for authorization
+            var dashboardWindow = new AnalyticsDashboardWindow(ApiKeyTextBox.Text)
+            {
+                Owner = this
+            };
+            dashboardWindow.ShowDialog();
+        }
     }
 }

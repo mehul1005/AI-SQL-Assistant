@@ -166,5 +166,67 @@ namespace AiSqlAssistant.Api.Controllers
             var logs = await _dbContext.AuditLogs.OrderByDescending(a => a.Timestamp).Take(50).ToListAsync();
             return Ok(logs);
         }
+
+        [HttpGet("analytics")]
+        public async Task<IActionResult> GetAnalytics()
+        {
+            // Fetch all logs once so we can manipulate them safely in memory (for 11 rows, this is instant)
+            var allLogs = await _dbContext.AuditLogs.ToListAsync();
+
+            var total = allLogs.Count;
+
+            // Check for "BLOCKED" regardless of case
+            var blocked = allLogs.Count(l =>
+                l.Status != null && l.Status.ToLower().Contains("blocked"));
+
+            // Check for "CRITICAL" regardless of case
+            var critical = allLogs.Count(l =>
+                l.RiskLevel != null && l.RiskLevel.ToLower() == "critical");
+
+            // Calculate average safely
+            var avgDur = allLogs
+                .Where(l => l.ExecutionDurationMs > 0)
+                .Select(l => (double)l.ExecutionDurationMs)
+                .DefaultIfEmpty(0)
+                .Average();
+
+            // Grouping users
+            var topUsers = allLogs
+                .GroupBy(l => l.UserName ?? "Unknown")
+                .Select(g => new UserActivity
+                {
+                    UserName = g.Key,
+                    QueryCount = g.Count()
+                })
+                .OrderByDescending(x => x.QueryCount)
+                .Take(5)
+                .ToList();
+
+            var summary = new AnalyticsSummary
+            {
+                TotalQueries = total,
+                BlockedQueries = blocked,
+                CriticalRisks = critical,
+                AverageDurationMs = Math.Round(avgDur, 2),
+                TopUsers = topUsers
+            };
+
+            return Ok(summary);
+        }
+    }
+
+    public class AnalyticsSummary
+    {
+        public int TotalQueries { get; set; }
+        public int BlockedQueries { get; set; }
+        public int CriticalRisks { get; set; }
+        public double AverageDurationMs { get; set; }
+        public List<UserActivity> TopUsers { get; set; } = new();
+    }
+
+    public class UserActivity
+    {
+        public string UserName { get; set; } = string.Empty;
+        public int QueryCount { get; set; }
     }
 }

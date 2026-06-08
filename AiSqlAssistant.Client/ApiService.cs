@@ -30,6 +30,21 @@ namespace AiSqlAssistant.Client
         public bool IsExecutionBlocked { get; set; } = false;
     }
 
+    public class AnalyticsSummary
+    {
+        public int TotalQueries { get; set; }
+        public int BlockedQueries { get; set; }
+        public int CriticalRisks { get; set; }
+        public double AverageDurationMs { get; set; }
+        public List<UserActivity> TopUsers { get; set; } = new();
+    }
+
+    public class UserActivity
+    {
+        public string UserName { get; set; } = string.Empty;
+        public int QueryCount { get; set; }
+    }
+
     // 2. Update the Response model to include it
     public class SqlGenerationResponse
     {
@@ -111,6 +126,17 @@ namespace AiSqlAssistant.Client
                 System.Windows.MessageBox.Show($"Failed to load logs: {ex.Message}");
                 return new List<AuditLog>();
             }
+        }
+
+        public async Task<AnalyticsSummary?> GetAnalyticsAsync()
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/analytics");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<AnalyticsSummary>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            return null;
         }
     }
 }
