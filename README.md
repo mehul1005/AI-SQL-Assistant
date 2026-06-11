@@ -6,7 +6,7 @@ An enterprise-grade, decoupled desktop application that translates natural langu
 
 > **"Never execute a query you didn't understand. Never understand a query without context."**
 
-[🚀 Quick Start](https://www.google.com/search?q=%23%EF%B8%8F-how-to-run-locally) · [🏗️ Architecture](https://www.google.com/search?q=%23%EF%B8%8F-enterprise-architecture) · [✨ Features](https://www.google.com/search?q=%23-core-features) · [☁️ Cloud Deployment](https://www.google.com/search?q=%23-cloud-deployment-azure) · [🛠️ Tech Stack](https://www.google.com/search?q=%23%EF%B8%8F-tech-stack)
+[🚀 Quick Start](#-how-to-run-locally) · [🏗️ Architecture](#-enterprise-architecture) · [✨ Features](#-core-features) · [☁️ Cloud Deployment](#-cloud-deployment-azure) · [🛠️ Tech Stack](#-tech-stack)
 
 ---
 
