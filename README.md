@@ -1,47 +1,27 @@
-<div align="center">
-
-# 🤖 AI SQL Assistant
+# 🤖 AI SQL Assistant (v2.0 Enterprise Release)
 
 ### *Speak Human. Query Data.*
 
-An enterprise-grade, decoupled desktop application that translates natural language
-into executable T-SQL using open-source LLMs — protected by a multi-layer security shield.
-
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![WPF](https://img.shields.io/badge/WPF-Desktop-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/desktop/wpf/)
-[![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://docs.microsoft.com/en-us/aspnet/core/)
-[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Llama](https://img.shields.io/badge/Llama_3.3-70B-FF6B35?style=for-the-badge&logo=meta&logoColor=white)](https://groq.com/)
-[![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-
-<br/>
+An enterprise-grade, decoupled desktop application that translates natural language into executable T-SQL using open-source LLMs — protected by a multi-layer security shield, JWT authentication, and live cloud telemetry.
 
 > **"Never execute a query you didn't understand. Never understand a query without context."**
 
-<br/>
-
-[🚀 Quick Start](#️-how-to-run-locally) · [🏗️ Architecture](#️-enterprise-architecture) · [✨ Features](#-core-features) · [☁️ Cloud Deployment](#-cloud-deployment-azure) · [🛠️ Tech Stack](#️-tech-stack)
-
-</div>
+[🚀 Quick Start](https://www.google.com/search?q=%23%EF%B8%8F-how-to-run-locally) · [🏗️ Architecture](https://www.google.com/search?q=%23%EF%B8%8F-enterprise-architecture) · [✨ Features](https://www.google.com/search?q=%23-core-features) · [☁️ Cloud Deployment](https://www.google.com/search?q=%23-cloud-deployment-azure) · [🛠️ Tech Stack](https://www.google.com/search?q=%23%EF%B8%8F-tech-stack)
 
 ---
 
 ## 📖 What Is This?
 
 AI SQL Assistant bridges the gap between **human intent** and **database queries**.
-Instead of writing T-SQL by hand, analysts simply describe what they want in plain English —
-the system handles schema discovery, query generation, risk analysis, security validation,
-and audit logging automatically.
+Instead of writing T-SQL by hand, analysts simply describe what they want in plain English — the system handles dynamic schema discovery, query generation, risk analysis, security validation, and audit logging automatically.
 
-Built for teams that need **AI-powered productivity without sacrificing governance**.
+Built for teams that need **AI-powered productivity without sacrificing governance**, v2.0 introduces full cloud-native capabilities, role-based JWT authentication, and real-time Application Insights telemetry.
 
 ---
 
 ## 🏗️ Enterprise Architecture
 
-This project enforces strict **separation of concerns** — splitting data orchestration,
-AI metadata injection, and desktop presentation into fully decoupled layers,
-protected by an identity-aware middleware shield.
+This project enforces strict **separation of concerns** — splitting data orchestration, AI metadata injection, and desktop presentation into fully decoupled layers, protected by an identity-aware JWT middleware shield.
 
 ```mermaid
 graph TB
@@ -50,7 +30,7 @@ graph TB
     %% ─────────────────────────────────────────
     subgraph CLIENT ["🖥️  WPF Desktop Client"]
         direction TB
-        AuthBox("🔑 Identity / API Key")
+        AuthBox("🔑 Login UI (JWT)")
         UI("💬 Natural Language Prompt")
         Review("👁️  HITL Review Screen")
         RiskDash("📊 Risk Dashboard")
@@ -60,7 +40,7 @@ graph TB
 
     subgraph API ["⚙️  ASP.NET Core 8 Web API"]
         direction TB
-        AuthMid("🛡️ API Key Middleware")
+        AuthMid("🛡️ JWT Bearer Middleware")
 
         subgraph ENDPOINTS ["REST Endpoints"]
             direction LR
@@ -78,16 +58,17 @@ graph TB
         EF("🗄️ Entity Framework Core")
     end
 
-    subgraph INFRA ["☁️  Infrastructure"]
+    subgraph INFRA ["☁️  Cloud Infrastructure"]
         direction TB
         LLM(("🦙 Groq\nLlama 3.3 70B"))
-        SQLite[("💾 SQLite\nSandbox + Audit Tables")]
+        AzureSQL[("☁️ Azure SQL Database\nProduction Data + Audit Logs")]
+        AppInsights("📈 Application Insights\nLive Telemetry")
     end
 
     %% ─────────────────────────────────────────
     %% AUTH FLOW
     %% ─────────────────────────────────────────
-    AuthBox -->|"x-api-key header"| AuthMid
+    AuthBox -->|"Bearer Token"| AuthMid
     AuthMid -->|"✅ Validated"| ENDPOINTS
     AuthMid -.->|"🚫 Log Unauthorized"| EF
 
@@ -95,8 +76,8 @@ graph TB
     %% GENERATION FLOW
     %% ─────────────────────────────────────────
     UI -->|"① Natural Language"| Generate
-    Generate -->|"② Fetch Schema"| SQLite
-    SQLite -.->|"Raw DDL"| Generate
+    Generate -->|"② Fetch Schema"| AzureSQL
+    AzureSQL -.->|"INFORMATION_SCHEMA"| Generate
     Generate -->|"③ Prompt + Schema"| LLM
     LLM -.->|"④ Raw T-SQL"| Generate
     Generate -->|"⑤ Analyze"| RiskService
@@ -110,19 +91,22 @@ graph TB
     Review -->|"⑦ User Approves ✅"| Execute
     Execute -->|"⑧ Security Scan"| Security
     Security -->|"⑨ Safe — Execute"| EF
-    EF -->|"⑩ Run Query"| SQLite
-    SQLite -.->|"Result Rows"| EF
+    EF -->|"⑩ Run Query (MARS Enabled)"| AzureSQL
+    AzureSQL -.->|"Result Rows"| EF
     EF -->|"⑪ JSON Response"| Execute
     Execute -->|"⑫ Render Results"| DataGrid
 
     %% ─────────────────────────────────────────
-    %% AUDIT FLOW
+    %% AUDIT & TELEMETRY FLOW
     %% ─────────────────────────────────────────
     RiskService -.->|"📝 Log BLOCKED_ANALYZER"| EF
     Security -.->|"📝 Log BLOCKED_SECURITY"| EF
-    Execute -.->|"📝 Log Execution + Timing"| EF
+    Execute -.->|"📝 Log Execution"| EF
     AuditUI -->|"Fetch History"| AuditAPI
     AuditAPI -->|"Query Logs"| EF
+    
+    Generate -.->|"📊 Track Event: SqlGenerated"| AppInsights
+    Security -.->|"📊 Track Event: SecurityTriggered"| AppInsights
 
     %% ─────────────────────────────────────────
     %% STYLING
@@ -131,14 +115,14 @@ graph TB
     classDef apiStyle      fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#3b0764,font-weight:bold
     classDef secureStyle   fill:#dcfce7,stroke:#16a34a,stroke-width:2.5px,color:#14532d,font-weight:bold
     classDef externalStyle fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12,font-weight:bold
-    classDef dbStyle       fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d,font-weight:bold
-    classDef endpointStyle fill:#e0f2fe,stroke:#0284c7,stroke-width:1.5px,color:#0c4a6e
+    classDef dbStyle       fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e,font-weight:bold
+    classDef endpointStyle fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px,color:#0f172a
 
     class AuthBox,UI,Review,RiskDash,DataGrid,AuditUI clientStyle
     class AuthMid,RiskService secureStyle
     class Security secureStyle
     class LLM externalStyle
-    class SQLite dbStyle
+    class AzureSQL,AppInsights dbStyle
     class Generate,Execute,AuditAPI endpointStyle
     class EF apiStyle
 
@@ -157,22 +141,27 @@ sequenceDiagram
     participant Risk   as 🔬 Risk Analyzer
     participant LLM    as 🦙 Llama 3.3
     participant Guard  as 🚧 Security Guard
-    participant DB     as 💾 SQLite
+    participant DB     as ☁️ Azure SQL
+    participant Telemetry as 📈 App Insights
+
+    User->>Client: Enters Credentials
+    Client->>Auth: POST /login
+    Auth-->>Client: Returns JWT Bearer Token
 
     User->>Client: Types natural language prompt
-    Client->>Auth: POST /generate (x-api-key header)
+    Client->>Auth: POST /generate (Bearer Token)
 
-    alt Invalid Key
+    alt Invalid Token
         Auth-->>Client: 401 Unauthorized
-        Auth--)DB: Log unauthorized attempt
-    else Valid Key
+    else Valid Token
         Auth->>API: Identity injected ✅
-        API->>DB: Fetch live schema DDL
-        DB-->>API: CREATE TABLE statements
+        API->>DB: Fetch INFORMATION_SCHEMA
+        DB-->>API: Table & Column definitions
         API->>LLM: System prompt + schema + user query
         LLM-->>API: Generated T-SQL
         API->>Risk: Analyze query
         Risk-->>API: Risk score (LOW / MEDIUM / CRITICAL)
+        API--)Telemetry: TrackEvent("SqlGenerated")
 
         alt CRITICAL Risk — Destructive Command
             API--)DB: Log BLOCKED_ANALYZER event
@@ -182,16 +171,17 @@ sequenceDiagram
             User->>Client: Reviews query manually (HITL)
             User->>Client: Clicks APPROVE ✅
 
-            Client->>Auth: POST /execute (x-api-key header)
+            Client->>Auth: POST /execute (Bearer Token)
             Auth->>Guard: Forward approved SQL
             Guard->>Guard: Regex scan for DML/DDL
 
             alt Malicious Pattern Detected
                 Guard--)DB: Log BLOCKED_SECURITY event
+                Guard--)Telemetry: TrackEvent("SecurityInterceptorTriggered")
                 Guard-->>Client: 🚫 Security Alert
             else Clean Query
-                Guard->>DB: Execute query safely
-                DB-->>Guard: Result rows
+                Guard->>DB: Execute query safely (MARS)
+                DB-->>Guard: Result rows (Safe DBNull handling)
                 Guard-->>Client: JSON response
                 Client->>User: Renders results in DataGrid
                 Guard--)DB: Log execution + duration
@@ -205,17 +195,13 @@ sequenceDiagram
 
 ## ✨ Core Features
 
-### 🔑 Identity & Access Management
+### 🔑 Identity & Access Management (JWT)
 
-A custom **ASP.NET Core Middleware** intercepts every HTTP request before it reaches any controller. It validates `x-api-key` headers, resolves user identity, and injects it into the server context. Unauthorized attempts are immediately blocked **and silently logged** for forensic review.
+A custom **ASP.NET Core Middleware** issues and validates cryptographically signed JWTs with an 8-hour expiry. It resolves user identity/roles and injects them into the server context. Every action is identity-stamped for forensic review.
 
----
+### 🚀 Dynamic Schema Discovery (Azure SQL)
 
-### 🚀 Dynamic Schema Discovery
-
-The backend interrogates SQLite's internal `sqlite_master` catalog at runtime to extract live `CREATE TABLE` DDL. This schema is injected into the LLM system prompt — so the model *always* generates SQL against your actual table structure, eliminating hallucinated column names.
-
----
+The backend dynamically interrogates Azure SQL's `INFORMATION_SCHEMA` catalog at runtime. This schema is injected into the LLM system prompt — ensuring the model *always* generates T-SQL against your actual, real-time table structure.
 
 ### 🔬 Query Risk Analyzer
 
@@ -231,33 +217,23 @@ Before any SQL reaches the user, the API parses the query, maps the execution pa
 
 Queries are **never executed blindly**. The API returns the raw SQL alongside its risk profile. The user must manually review, understand, and explicitly approve execution — turning every query into a conscious decision.
 
----
-
 ### 🚧 Regex Security Interceptor
 
-Even after HITL approval, a **server-side regex engine** performs a final scan at the execution endpoint. If destructive `DROP`, `DELETE`, `TRUNCATE`, or DDL commands are detected — whether from AI hallucination or malicious edits — the request is killed instantly and a security event is logged.
+Even after HITL approval, a **server-side regex engine** performs a final scan at the execution endpoint. If destructive `DROP`, `DELETE`, `TRUNCATE`, or DDL commands are detected, the request is killed instantly and a security event is logged.
 
----
+### 📈 Application Insights Observability
 
-### 📜 Enterprise Audit Logging
-
-A silent governance pipeline records every interaction with full identity attribution:
-
-* ✅ `EXECUTED` — query, duration, row count, user
-* ⛔ `BLOCKED_ANALYZER` — risk-blocked events
-* 🚫 `BLOCKED_SECURITY` — interceptor-blocked events
-* 🔒 `UNAUTHORIZED` — identity failures
+Fully integrated Azure Telemetry providing live traffic metrics, SQL database dependency tracking, and custom business event monitoring (e.g., tracking whenever the Security Interceptor blocks a malicious prompt).
 
 ---
 
 ## ☁️ Cloud Deployment (Azure)
 
-The production backend is architected to run in a cloud-native ecosystem.
+The production backend is architected to run in a cloud-native Microsoft ecosystem.
 
-### Serverless Hosting
-
-* **App Layer:** Hosted seamlessly via **Azure App Services** on a scalable infrastructure.
-* **Configuration Override:** Real API secrets and user key registries are safely isolated within **Azure Environment Variables**, keeping raw credentials completely out of source control.
+* **App Layer:** Hosted seamlessly via **Azure App Services**.
+* **Database Layer:** Powered by **Azure SQL Database** with MARS (Multiple Active Result Sets) enabled for high-performance concurrent reads/writes.
+* **Configuration Override:** Real API secrets, connection strings, and JWT keys are safely isolated within **Azure Environment Variables**, keeping raw credentials completely out of source control.
 
 ### Shifting WPF to Cloud Mode
 
@@ -268,7 +244,8 @@ To switch your native client interface to communicate with your live cloud envir
 // private readonly string _baseUrl = "https://localhost:7092/api/SqlAssistant";
 
 // Production Azure Cloud
-private readonly string _baseUrl = "[https://your-app-service-name.azurewebsites.net/api/SqlAssistant](https://your-app-service-name.azurewebsites.net/api/SqlAssistant)";
+private readonly string _baseUrl = "https://your-app-service-name.azurewebsites.net/api/SqlAssistant";
+private readonly string _authUrl = "https://your-app-service-name.azurewebsites.net/api/Auth";
 
 ```
 
@@ -276,9 +253,9 @@ private readonly string _baseUrl = "[https://your-app-service-name.azurewebsites
 
 ## 🛠️ Tech Stack
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                        AI SQL ASSISTANT                         │
+│                        AI SQL ASSISTANT v2                      │
 ├──────────────────────────┬──────────────────────────────────────┤
 │  Presentation Layer      │  WPF (.NET 8) · C# 12                │
 ├──────────────────────────┼──────────────────────────────────────┤
@@ -287,43 +264,13 @@ private readonly string _baseUrl = "[https://your-app-service-name.azurewebsites
 │  AI / LLM                │  Llama 3.3 70B via Groq              │
 │                          │  Betalgo.OpenAI SDK (rerouted)       │
 ├──────────────────────────┼──────────────────────────────────────┤
-│  Data / ORM              │  Entity Framework Core · SQLite      │
+│  Data / ORM              │  Entity Framework Core               │
+│                          │  Azure SQL Database / LocalDB        │
 ├──────────────────────────┼──────────────────────────────────────┤
-│  Language                │  C# 12                               │
-│  Target Framework        │  .NET 8.0                            │
+│  Observability           │  Azure Application Insights          │
+├──────────────────────────┼──────────────────────────────────────┤
+│  Security                │  JWT Bearer Authentication           │
 └──────────────────────────┴──────────────────────────────────────┘
-
-```
-
----
-
-## 🔐 Security Architecture
-
-```mermaid
-flowchart LR
-    REQ(["📨 HTTP Request"]) --> L1
-
-    subgraph LAYERS ["Defence in Depth — 3 Layers"]
-        direction LR
-        L1["🛡️ Layer 1\nAPI Key Auth\nIdentity Injection"]
-        L2["🔬 Layer 2\nRisk Analyzer\nQuery Classification"]
-        L3["🚧 Layer 3\nRegex Interceptor\nPattern Matching"]
-    end
-
-    L1 -->|"❌ Invalid Key"| BLOCK1(["🚫 401 Blocked\n+ Logged"])
-    L1 -->|"✅ Valid"| L2
-    L2 -->|"❌ CRITICAL Risk"| BLOCK2(["⛔ Blocked\n+ Logged"])
-    L2 -->|"✅ Acceptable"| HITL["👁️ HITL Review\n(User Approves)"]
-    HITL --> L3
-    L3 -->|"❌ Malicious Pattern"| BLOCK3(["🚫 Blocked\n+ Logged"])
-    L3 -->|"✅ Clean"| EXEC(["✅ Execute\n+ Audit Log"])
-
-    style LAYERS fill:#f8fafc,stroke:#cbd5e1,stroke-width:2px
-    style EXEC fill:#dcfce7,stroke:#16a34a,color:#14532d
-    style BLOCK1 fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
-    style BLOCK2 fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
-    style BLOCK3 fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
-    style HITL fill:#fef9c3,stroke:#ca8a04,color:#713f12
 
 ```
 
@@ -342,36 +289,47 @@ flowchart LR
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone [https://github.com/your-username/ai-sql-assistant.git](https://github.com/your-username/ai-sql-assistant.git)
+git clone https://github.com/your-username/ai-sql-assistant.git
 cd ai-sql-assistant
 
 ```
 
-### 2️⃣ Configure API Keys
+### 2️⃣ Configure `appsettings.json`
 
-Open `AiSqlAssistant.Api/appsettings.json` and insert your credentials:
+Open `AiSqlAssistant.Api/appsettings.json` and insert your API keys and JWT secrets. The default connection string uses SQL Server LocalDB for safe sandbox testing:
 
 ```json
 {
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=AiSqlAssistantDB;MultipleActiveResultSets=True;Trusted_Connection=True;"
+  },
   "OpenAI": {
     "ApiKey": "gsk_YOUR_GROQ_API_KEY_HERE"
   },
-  "ApiKeys": {
-    "dev-key-777":   "Admin User",
-    "guest-key-111": "Guest Analyst"
+  "Jwt": {
+    "Key": "YOUR_SUPER_SECRET_JWT_KEY_MINIMUM_32_BYTES_LONG!",
+    "Issuer": "AiSqlAssistantServer",
+    "Audience": "AiSqlAssistantClient"
+  },
+  "ApplicationInsights": {
+    "ConnectionString": "YOUR_APP_INSIGHTS_CONNECTION_STRING_HERE"
+  },
+  "Users": {
+    "admin": {
+      "Password": "Password123!",
+      "Role": "Admin",
+      "FullName": "System Administrator"
+    }
   }
 }
 
 ```
 
-> 💡 **Tip:** The `ApiKeys` section is your user registry.
-> Each key maps to a named identity visible in audit logs.
-
 ### 3️⃣ Configure Startup Projects
 
 In Visual Studio:
 
-```
+```text
 Right-click Solution → Properties
   → Startup Project → Multiple startup projects
     → AiSqlAssistant.Api    [Start]
@@ -383,30 +341,18 @@ Right-click Solution → Properties
 
 Press **`F5`** — the API automatically:
 
-* Provisions the SQLite database
-* Runs EF Core migrations
-* Seeds sample business data
+1. Connects to LocalDB (or Azure SQL).
+2. Runs EF Core `EnsureCreated()` to build the schema.
+3. Seeds sample business data.
 
-The WPF client launches and connects automatically. ✅
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue first to discuss what you'd like to change.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+The WPF client launches, presents the secure **Login UI**, and connects automatically once you enter your credentials. ✅
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. See [`LICENSE`](https://www.google.com/search?q=LICENSE) for more information.
+Distributed under the MIT License. See `LICENSE` for more information.
 
-Built with ❤️ using .NET 8 · WPF · ASP.NET Core · Llama 3.3
+Built with ❤️ using .NET 8 · Azure SQL · WPF · ASP.NET Core · Llama 3.3
 
 ⭐ **Star this repo if it was useful to you!** ⭐
