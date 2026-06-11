@@ -1,6 +1,9 @@
 ﻿using AiSqlAssistant.Api.Data;
 using AiSqlAssistant.Api.Models;
 using AiSqlAssistant.Api.Services;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Channel;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
@@ -9,17 +12,20 @@ using System.Text.RegularExpressions;
 
 namespace AiSqlAssistant.Api.Controllers
 {
-    [ApiController]
+    [Authorize]
     [Route("api/[controller]")]
+    [ApiController]
     public class SqlAssistantController : ControllerBase
     {
         private readonly ISqlGeneratorService _sqlGeneratorService;
         private readonly ApplicationDbContext _dbContext;
+        private readonly TelemetryClient _telemetry;
 
-        public SqlAssistantController(ISqlGeneratorService sqlGeneratorService, ApplicationDbContext dbContext)
+        public SqlAssistantController(ISqlGeneratorService sqlGeneratorService, ApplicationDbContext dbContext, TelemetryClient telemetry)
         {
             _sqlGeneratorService = sqlGeneratorService;
             _dbContext = dbContext;
+            _telemetry = telemetry;
         }
 
         [HttpPost("generate")]
@@ -31,17 +37,35 @@ namespace AiSqlAssistant.Api.Controllers
             var schemaBuilder = new System.Text.StringBuilder();
             try
             {
-                using var connection = _dbContext.Database.GetDbConnection();
-                await connection.OpenAsync();
-                using var schemaCommand = connection.CreateCommand();
-                schemaCommand.CommandText = "SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'";
-                using var schemaReader = await schemaCommand.ExecuteReaderAsync();
-                while (await schemaReader.ReadAsync())
+                var connection = _dbContext.Database.GetDbConnection();
+                if (connection.State != ConnectionState.Open)
+                    await connection.OpenAsync();
+
+                using (var schemaCommand = connection.CreateCommand())
                 {
-                    if (!schemaReader.IsDBNull(0))
+                    // Interrogate Azure SQL for all tables and their exact column definitions
+                    schemaCommand.CommandText = @"
+                        SELECT 
+                            t.TABLE_NAME,
+                            STUFF((
+                                SELECT ', ' + c.COLUMN_NAME + ' ' + c.DATA_TYPE
+                                FROM INFORMATION_SCHEMA.COLUMNS c
+                                WHERE c.TABLE_NAME = t.TABLE_NAME
+                                FOR XML PATH('')
+                            ), 1, 2, '') AS Columns
+                        FROM INFORMATION_SCHEMA.TABLES t
+                        WHERE t.TABLE_TYPE = 'BASE TABLE' AND t.TABLE_NAME != '__EFMigrationsHistory'";
+
+                    using (var schemaReader = await schemaCommand.ExecuteReaderAsync())
                     {
-                        schemaBuilder.AppendLine(schemaReader.GetString(0));
-                        schemaBuilder.AppendLine(";");
+                        while (await schemaReader.ReadAsync())
+                        {
+                            string tableName = schemaReader.GetString(0);
+                            string columns = schemaReader.GetString(1);
+
+                            // Feeds the LLM a clean format: "Table: Applications | Columns: Id int, AppName nvarchar..."
+                            schemaBuilder.AppendLine($"Table: {tableName} | Columns: {columns}");
+                        }
                     }
                 }
             }
@@ -73,6 +97,14 @@ namespace AiSqlAssistant.Api.Controllers
                 _dbContext.AuditLogs.Add(auditRecord);
                 await _dbContext.SaveChangesAsync();
             }
+
+            // --- CUSTOM TELEMETRY ---
+            _telemetry.TrackEvent("SqlGenerated", new Dictionary<string, string>
+            {
+                { "User", HttpContext.User.Identity?.Name ?? "Unknown" },
+                { "RiskLevel", riskProfile.RiskLevel },
+                { "BlockedByAnalyzer", riskProfile.IsExecutionBlocked.ToString() }
+            });
 
             return Ok(new { GeneratedSql = sqlQuery, RiskProfile = riskProfile });
         }
@@ -106,6 +138,13 @@ namespace AiSqlAssistant.Api.Controllers
 
                 _dbContext.AuditLogs.Add(auditRecord);
                 await _dbContext.SaveChangesAsync();
+
+                // --- CUSTOM TELEMETRY ---
+                _telemetry.TrackEvent("SecurityInterceptorTriggered", new Dictionary<string, string>
+                {
+                    { "User", HttpContext.User.Identity?.Name ?? "Unknown" },
+                    { "AttemptedQuery", sqlQuery }
+                });
 
                 return Ok(new
                 {

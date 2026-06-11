@@ -7,7 +7,15 @@ using System;
 
 namespace AiSqlAssistant.Client
 {
-    // 0. Added the Audit Log model
+    // --- Login Response Model ---
+    public class LoginResponse
+    {
+        public string Token { get; set; } = string.Empty;
+        public string User { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string Error { get; set; } = string.Empty;
+    }
+
     public class AuditLog
     {
         public int Id { get; set; }
@@ -21,7 +29,6 @@ namespace AiSqlAssistant.Client
         public string ErrorMessage { get; set; } = string.Empty;
     }
 
-    // 1. Add the Risk Profile model to the client
     public class QueryRiskProfile
     {
         public string RiskLevel { get; set; } = "LOW";
@@ -45,12 +52,11 @@ namespace AiSqlAssistant.Client
         public int QueryCount { get; set; }
     }
 
-    // 2. Update the Response model to include it
     public class SqlGenerationResponse
     {
         public string GeneratedSql { get; set; } = string.Empty;
         public string Error { get; set; } = string.Empty;
-        public QueryRiskProfile RiskProfile { get; set; } = new QueryRiskProfile(); // Added!
+        public QueryRiskProfile RiskProfile { get; set; } = new QueryRiskProfile();
         public List<Dictionary<string, object>> Data { get; set; } = new List<Dictionary<string, object>>();
     }
 
@@ -58,31 +64,63 @@ namespace AiSqlAssistant.Client
     {
         private readonly HttpClient _httpClient;
 
+        // Base URLs
         //private readonly string _baseUrl = "https://localhost:7092/api/SqlAssistant";
+        //private readonly string _authUrl = "https://localhost:7092/api/Auth";
 
+        // Production Azure Cloud
         private readonly string _baseUrl = "https://aisqlassistant-api-2026-ffhgaedhabhuddbz.centralindia-01.azurewebsites.net/api/SqlAssistant";
+        private readonly string _authUrl = "https://aisqlassistant-api-2026-ffhgaedhabhuddbz.centralindia-01.azurewebsites.net/api/Auth";
 
         public ApiService()
         {
             _httpClient = new HttpClient();
         }
 
-        // --- Set API Key METHOD ---
-        public void SetApiKey(string apiKey)
+        // --- Login Method ---
+        public async Task<LoginResponse> LoginAsync(string username, string password)
         {
-            _httpClient.DefaultRequestHeaders.Remove("x-api-key");
-            if (!string.IsNullOrWhiteSpace(apiKey))
+            try
             {
-                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey.Trim());
+                var response = await _httpClient.PostAsJsonAsync($"{_authUrl}/login", new { Username = username, Password = password });
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<LoginResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                           ?? new LoginResponse { Error = "Deserialization failed." };
+                }
+
+                return new LoginResponse { Error = "Invalid username or password." };
+            }
+            catch (Exception ex)
+            {
+                return new LoginResponse { Error = $"API Error: {ex.Message}" };
             }
         }
 
-        // Phase 5: Step 1 - Generate
+        // --- JWT Bearer Token Injection ---
+        public void SetAuthToken(string token)
+        {
+            _httpClient.DefaultRequestHeaders.Remove("Authorization");
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                // JWT standard requires "Bearer " prefix
+                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token.Trim()}");
+            }
+        }
+
         public async Task<SqlGenerationResponse> GenerateSqlAsync(string prompt)
         {
             try
             {
                 var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/generate", new { UserPrompt = prompt });
+
+                // Catch 401 Unauthorized errors specifically
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    return new SqlGenerationResponse { Error = "Session expired or unauthorized. Please log in again." };
+                }
+
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                        ?? new SqlGenerationResponse { Error = "Deserialization failed." };
@@ -90,7 +128,6 @@ namespace AiSqlAssistant.Client
             catch (Exception ex) { return new SqlGenerationResponse { Error = $"API Error: {ex.Message}" }; }
         }
 
-        // Phase 5/7: Step 2 - Execute (Now passing audit context)
         public async Task<SqlGenerationResponse> ExecuteSqlAsync(string sql, string originalPrompt, string riskLevel)
         {
             try
@@ -103,6 +140,12 @@ namespace AiSqlAssistant.Client
                 };
 
                 var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/execute", payload);
+
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    return new SqlGenerationResponse { Error = "Session expired or unauthorized." };
+                }
+
                 response.EnsureSuccessStatusCode();
                 return await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                        ?? new SqlGenerationResponse { Error = "Deserialization failed." };

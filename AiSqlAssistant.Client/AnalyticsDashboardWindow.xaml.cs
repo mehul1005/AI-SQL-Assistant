@@ -7,11 +7,13 @@ namespace AiSqlAssistant.Client
     {
         private readonly ApiService _apiService;
 
-        public AnalyticsDashboardWindow(string currentApiKey)
+        public AnalyticsDashboardWindow(string jwtToken)
         {
             InitializeComponent();
             _apiService = new ApiService();
-            _apiService.SetApiKey(currentApiKey);
+
+            // Set the JWT Token
+            _apiService.SetAuthToken(jwtToken);
 
             Loaded += AnalyticsDashboardWindow_Loaded;
         }

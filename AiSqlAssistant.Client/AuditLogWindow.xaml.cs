@@ -6,16 +6,16 @@ namespace AiSqlAssistant.Client
     {
         private readonly ApiService _apiService;
 
-        // Updated constructor to require the API Key
-        public AuditLogWindow(string currentApiKey)
+        // Updated constructor to require the JWT Token
+        public AuditLogWindow(string jwtToken)
         {
             InitializeComponent();
             _apiService = new ApiService();
 
-            // 1. Set the identity immediately 
-            _apiService.SetApiKey(currentApiKey);
+            // 1. Set the JWT Token
+            _apiService.SetAuthToken(jwtToken);
 
-            // 2. Now it is safe to fetch the protected data
+            // 2. Fetch the protected data
             LoadLogs();
         }
 

@@ -1,15 +1,39 @@
 using AiSqlAssistant.Api.Data;
 using AiSqlAssistant.Api.Services;
-using AiSqlAssistant.Api.Middleware;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using OpenAI.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Added services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// --- START APPLICATION INSIGHTS TELEMETRY ---
+builder.Services.AddApplicationInsightsTelemetry();
+
+// --- JWT AUTHENTICATION SETUP ---
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+        };
+    });
+
+// 1. REGISTER AZURE SQL INSTEAD OF SQLITE
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register OpenAI Service
 builder.Services.AddOpenAIService(settings => {
@@ -17,39 +41,59 @@ builder.Services.AddOpenAIService(settings => {
     settings.BaseDomain = "https://api.groq.com/openai/v1";
 });
 
-// Register the SQLite Database Context
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Register custom service
+builder.Services.AddTransient<ISqlGeneratorService, OpenAiSqlGeneratorService>();
 
 // Register custom service
 builder.Services.AddTransient<ISqlGeneratorService, OpenAiSqlGeneratorService>();
 
 var app = builder.Build();
 
-// Create the SQLite database file and seed data automatically on startup
+// 2. AZURE SQL CLOUD STARTUP SCRIPT
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    // WARNING: EnsureDeleted is GONE. We never wipe a production Azure SQL database!
     dbContext.Database.EnsureCreated();
 
-    // Get a reference to the underlying database connection
     using var connection = dbContext.Database.GetDbConnection();
     connection.Open();
 
     using var command = connection.CreateCommand();
-    command.CommandText = @"
-        CREATE TABLE IF NOT EXISTS Applications (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            AppName TEXT NOT NULL,
-            CustomGroup TEXT,
-            CreatedDate DATETIME
-        );
 
-        -- Only seed if the table is completely empty
+    // 3. UPDATED FOR T-SQL SYNTAX WITH AUDIT LOGS
+    command.CommandText = @"
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'Applications')
+        BEGIN
+            CREATE TABLE Applications (
+                Id INT PRIMARY KEY IDENTITY(1,1),
+                AppName NVARCHAR(255) NOT NULL,
+                CustomGroup NVARCHAR(100),
+                CreatedDate DATETIME
+            );
+        END;
+
+        -- NEW: Force SQL Server to build the AuditLogs table!
+        IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'AuditLogs')
+        BEGIN
+            CREATE TABLE AuditLogs (
+                Id INT PRIMARY KEY IDENTITY(1,1),
+                Timestamp DATETIME2 NOT NULL,
+                UserPrompt NVARCHAR(MAX) NOT NULL,
+                GeneratedSql NVARCHAR(MAX) NOT NULL,
+                RiskLevel NVARCHAR(MAX) NOT NULL,
+                Status NVARCHAR(MAX) NOT NULL,
+                ExecutionDurationMs BIGINT NOT NULL,
+                UserName NVARCHAR(MAX) NOT NULL,
+                ErrorMessage NVARCHAR(MAX) NOT NULL
+            );
+        END;
+
         SELECT COUNT(*) FROM Applications;
     ";
 
-    long count = (long)(command.ExecuteScalar() ?? 0);
+    long count = Convert.ToInt64(command.ExecuteScalar() ?? 0);
 
     if (count == 0)
     {
@@ -72,12 +116,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthorization();
 
-// --- API KEY SECURITY MIDDLEWARE ---
-// This must run before MapControllers so it protects all endpoints!
-app.UseMiddleware<ApiKeyAuthMiddleware>();
-// ----------------------------------------
+app.UseAuthentication(); // Must come before Authorization
+app.UseAuthorization();
 
 app.MapControllers();
 app.Run();

@@ -6,20 +6,25 @@ namespace AiSqlAssistant.Client
     public partial class MainWindow : Window
     {
         private readonly ApiService _apiService;
+        private readonly string _jwtToken; // Store the JWT token
 
-        public MainWindow()
+        // Updated constructor to accept JWT details from LoginWindow
+        public MainWindow(string jwtToken, string user, string role)
         {
             InitializeComponent();
             _apiService = new ApiService();
+            _jwtToken = jwtToken;
+
+            // Updated the window title to show the logged-in user
+            this.Title = $"AI SQL Assistant - Enterprise Security | Logged in as: {user} ({role})";
         }
 
-        // STEP 1: GENERATE ONLY
         private async void GenerateButton_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(PromptTextBox.Text)) return;
 
-            // 1. Set Identity!
-            _apiService.SetApiKey(ApiKeyTextBox.Text);
+            // Inject the JWT Bearer Token
+            _apiService.SetAuthToken(_jwtToken);
 
             GenerateButton.IsEnabled = false;
             ExecuteButton.IsEnabled = false;
@@ -37,35 +42,31 @@ namespace AiSqlAssistant.Client
             {
                 OutputTextBox.Text = response.GeneratedSql;
 
-                // Populate the Risk Dashboard
                 RiskDashboard.Visibility = Visibility.Visible;
                 OperationText.Text = response.RiskProfile.Operation;
                 TablesText.Text = string.Join(", ", response.RiskProfile.AffectedTables);
                 RiskText.Text = response.RiskProfile.RiskLevel;
 
-                // Color code the Risk Badge
-                if (response.RiskProfile.RiskLevel == "LOW") RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#10B981")); // Green
-                else if (response.RiskProfile.RiskLevel == "MEDIUM") RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F59E0B")); // Yellow
-                else RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#EF4444")); // Red
+                if (response.RiskProfile.RiskLevel == "LOW") RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#10B981"));
+                else if (response.RiskProfile.RiskLevel == "MEDIUM") RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#F59E0B"));
+                else RiskBadge.Background = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#EF4444"));
 
-                ExecuteButton.IsEnabled = !response.RiskProfile.IsExecutionBlocked; // Keep Execute locked if CRITICAL!
+                ExecuteButton.IsEnabled = !response.RiskProfile.IsExecutionBlocked;
             }
 
             GenerateButton.IsEnabled = true;
         }
 
-        // STEP 2: APPROVE & EXECUTE
         private async void ExecuteButton_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(OutputTextBox.Text)) return;
 
-            // 1. Set Identity!
-            _apiService.SetApiKey(ApiKeyTextBox.Text);
+            // Inject the JWT Bearer Token
+            _apiService.SetAuthToken(_jwtToken);
 
             ExecuteButton.IsEnabled = false;
             string approvedSql = OutputTextBox.Text;
 
-            // Pass the original prompt and risk level down for the Audit Log!
             var response = await _apiService.ExecuteSqlAsync(approvedSql, PromptTextBox.Text, RiskText.Text);
 
             if (!string.IsNullOrEmpty(response.Error))
@@ -75,7 +76,6 @@ namespace AiSqlAssistant.Client
                 return;
             }
 
-            // Bind the DataGrid
             if (response.Data != null && response.Data.Count > 0)
             {
                 DataTable dataTable = new DataTable();
@@ -99,21 +99,15 @@ namespace AiSqlAssistant.Client
 
         private void ViewLogsButton_Click(object sender, RoutedEventArgs e)
         {
-            // Pass the API Key from the textbox into the new window!
-            var logWindow = new AuditLogWindow(ApiKeyTextBox.Text)
-            {
-                Owner = this
-            };
+            // Pass the JWT Token instead of the ApiKey
+            var logWindow = new AuditLogWindow(_jwtToken) { Owner = this };
             logWindow.ShowDialog();
         }
 
         private void ViewAnalyticsButton_Click(object sender, RoutedEventArgs e)
         {
-            // Open the dashboard, passing the API Key for authorization
-            var dashboardWindow = new AnalyticsDashboardWindow(ApiKeyTextBox.Text)
-            {
-                Owner = this
-            };
+            // Pass the JWT Token instead of the ApiKey
+            var dashboardWindow = new AnalyticsDashboardWindow(_jwtToken) { Owner = this };
             dashboardWindow.ShowDialog();
         }
     }
