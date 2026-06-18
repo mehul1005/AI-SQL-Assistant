@@ -57,7 +57,29 @@ namespace AiSqlAssistant.Client
         public string GeneratedSql { get; set; } = string.Empty;
         public string Error { get; set; } = string.Empty;
         public QueryRiskProfile RiskProfile { get; set; } = new QueryRiskProfile();
+        public string? Explanation { get; set; }
         public List<Dictionary<string, object>> Data { get; set; } = new List<Dictionary<string, object>>();
+    }
+
+    public class QueryTemplateDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string SqlTemplate { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public int UsageCount { get; set; }
+    }
+
+    public class QueryHistoryDto
+    {
+        public int Id { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string UserPrompt { get; set; } = string.Empty;
+        public string GeneratedSql { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public bool WasExecuted { get; set; }
+        public string? Explanation { get; set; }
     }
 
     public class ApiService
@@ -180,6 +202,65 @@ namespace AiSqlAssistant.Client
                 return JsonSerializer.Deserialize<AnalyticsSummary>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
             return null;
+        }
+
+        public async Task<List<QueryHistoryDto>> GetQueryHistoryAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"{_baseUrl}/history");
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<List<QueryHistoryDto>>(
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                    ?? new List<QueryHistoryDto>();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to load history: {ex.Message}");
+                return new List<QueryHistoryDto>();
+            }
+        }
+
+        public async Task<List<QueryTemplateDto>> GetTemplatesAsync(string? category = null)
+        {
+            try
+            {
+                string url = string.IsNullOrWhiteSpace(category) 
+                    ? $"{_baseUrl}/templates" 
+                    : $"{_baseUrl}/templates?category={category}";
+                    
+                var response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<List<QueryTemplateDto>>(
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                    ?? new List<QueryTemplateDto>();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to load templates: {ex.Message}");
+                return new List<QueryTemplateDto>();
+            }
+        }
+
+        public async Task<SqlGenerationResponse> GenerateSqlWithExplanationAsync(string prompt)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/generate", new { 
+                    UserPrompt = prompt,
+                    IncludeExplanation = true
+                });
+
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    return new SqlGenerationResponse { Error = "Session expired or unauthorized." };
+                }
+
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<SqlGenerationResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                       ?? new SqlGenerationResponse { Error = "Deserialization failed." };
+            }
+            catch (Exception ex) { return new SqlGenerationResponse { Error = $"API Error: {ex.Message}" }; }
         }
     }
 }

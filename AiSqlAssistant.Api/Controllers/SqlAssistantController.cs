@@ -74,11 +74,48 @@ namespace AiSqlAssistant.Api.Controllers
                 return StatusCode(500, $"Failed to discover database schema: {ex.Message}");
             }
 
-            string sqlQuery = await _sqlGeneratorService.GenerateSqlAsync(request.UserPrompt, schemaBuilder.ToString());
+            string sqlQuery;
+            string? explanation = null;
+
+            // Use few-shot learning if examples are provided
+            if (request.FewShotExamples != null && request.FewShotExamples.Any())
+            {
+                sqlQuery = await _sqlGeneratorService.GenerateSqlWithFewShotAsync(
+                    request.UserPrompt, 
+                    schemaBuilder.ToString(), 
+                    request.FewShotExamples);
+            }
+            // Use explanation mode if requested
+            else if (request.IncludeExplanation)
+            {
+                var (sql, exp) = await _sqlGeneratorService.GenerateSqlWithExplanationAsync(
+                    request.UserPrompt, 
+                    schemaBuilder.ToString());
+                sqlQuery = sql;
+                explanation = exp;
+            }
+            // Standard generation
+            else
+            {
+                sqlQuery = await _sqlGeneratorService.GenerateSqlAsync(request.UserPrompt, schemaBuilder.ToString());
+            }
+
             sqlQuery = sqlQuery.Replace("```sql", "").Replace("```", "").Trim();
 
             // Generate Risk Profile
             var riskProfile = QueryRiskAnalyzer.Analyze(sqlQuery);
+
+            // Save to Query History (Phase 1 feature)
+            var historyRecord = new QueryHistory
+            {
+                UserPrompt = request.UserPrompt,
+                GeneratedSql = sqlQuery,
+                UserName = HttpContext.User.Identity?.Name ?? "Unknown",
+                WasExecuted = false,
+                Explanation = explanation
+            };
+            _dbContext.QueryHistory.Add(historyRecord);
+            await _dbContext.SaveChangesAsync();
 
             // --- LOG CRITICAL ATTEMPTS IMMEDIATELY ---
             if (riskProfile.IsExecutionBlocked)
@@ -88,8 +125,8 @@ namespace AiSqlAssistant.Api.Controllers
                     UserPrompt = request.UserPrompt,
                     GeneratedSql = sqlQuery,
                     RiskLevel = riskProfile.RiskLevel,
-                    Status = "BLOCKED_BY_ANALYZER", // Distinct status for generation-blocks
-                    ExecutionDurationMs = 0, // 0 because it never reached the DB execution
+                    Status = "BLOCKED_BY_ANALYZER",
+                    ExecutionDurationMs = 0,
                     ErrorMessage = "Query execution was locked by the Risk Analyzer.",
                     UserName = HttpContext.User.Identity?.Name ?? "Unknown"
                 };
@@ -103,10 +140,11 @@ namespace AiSqlAssistant.Api.Controllers
             {
                 { "User", HttpContext.User.Identity?.Name ?? "Unknown" },
                 { "RiskLevel", riskProfile.RiskLevel },
-                { "BlockedByAnalyzer", riskProfile.IsExecutionBlocked.ToString() }
+                { "BlockedByAnalyzer", riskProfile.IsExecutionBlocked.ToString() },
+                { "HasExplanation", (!string.IsNullOrEmpty(explanation)).ToString() }
             });
 
-            return Ok(new { GeneratedSql = sqlQuery, RiskProfile = riskProfile });
+            return Ok(new { GeneratedSql = sqlQuery, RiskProfile = riskProfile, Explanation = explanation });
         }
 
         [HttpPost("execute")]
@@ -204,6 +242,58 @@ namespace AiSqlAssistant.Api.Controllers
         {
             var logs = await _dbContext.AuditLogs.OrderByDescending(a => a.Timestamp).Take(50).ToListAsync();
             return Ok(logs);
+        }
+
+        [HttpGet("history")]
+        public async Task<IActionResult> GetQueryHistory()
+        {
+            var history = await _dbContext.QueryHistory
+                .OrderByDescending(h => h.Timestamp)
+                .Take(100)
+                .ToListAsync();
+            return Ok(history);
+        }
+
+        [HttpPost("templates")]
+        public async Task<IActionResult> SaveTemplate([FromBody] QueryTemplate template)
+        {
+            if (string.IsNullOrWhiteSpace(template.Name) || string.IsNullOrWhiteSpace(template.SqlTemplate))
+                return BadRequest("Name and SQL template are required.");
+
+            template.CreatedBy = HttpContext.User.Identity?.Name ?? "Unknown";
+            template.CreatedDate = DateTime.UtcNow;
+            
+            _dbContext.QueryTemplates.Add(template);
+            await _dbContext.SaveChangesAsync();
+            
+            return Ok(template);
+        }
+
+        [HttpGet("templates")]
+        public async Task<IActionResult> GetTemplates(string? category = null)
+        {
+            IQueryable<QueryTemplate> query = _dbContext.QueryTemplates;
+            
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                query = query.Where(t => t.Category == category);
+            }
+            
+            var templates = await query.OrderByDescending(t => t.UsageCount).ToListAsync();
+            return Ok(templates);
+        }
+
+        [HttpPut("templates/{id}/use")]
+        public async Task<IActionResult> IncrementTemplateUsage(int id)
+        {
+            var template = await _dbContext.QueryTemplates.FindAsync(id);
+            if (template == null)
+                return NotFound();
+            
+            template.UsageCount++;
+            await _dbContext.SaveChangesAsync();
+            
+            return Ok(template);
         }
 
         [HttpGet("analytics")]

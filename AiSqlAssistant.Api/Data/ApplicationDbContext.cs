@@ -9,5 +9,7 @@ namespace AiSqlAssistant.Api.Data
 
         // Automatically creates the AuditLogs table in SQLite
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<QueryHistory> QueryHistory { get; set; }
+        public DbSet<QueryTemplate> QueryTemplates { get; set; }
     }
 }
