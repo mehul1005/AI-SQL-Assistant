@@ -1,3 +1,5 @@
+using System;
+
 namespace AiSqlAssistant.Api.Models
 {
     public class QueryTemplate
@@ -23,25 +25,9 @@ namespace AiSqlAssistant.Api.Models
         public string? Explanation { get; set; }
     }
 
-    public class SqlGenerationRequest
-    {
-        public string UserPrompt { get; set; } = string.Empty;
-        public List<QueryExample>? FewShotExamples { get; set; }
-        public bool IncludeExplanation { get; set; } = false;
-    }
-
     public class QueryExample
     {
         public string Prompt { get; set; } = string.Empty;
         public string Sql { get; set; } = string.Empty;
-    }
-
-    public class SqlGenerationResponse
-    {
-        public string GeneratedSql { get; set; } = string.Empty;
-        public string Error { get; set; } = string.Empty;
-        public QueryRiskProfile RiskProfile { get; set; } = new QueryRiskProfile();
-        public string? Explanation { get; set; }
-        public List<Dictionary<string, object>> Data { get; set; } = new List<Dictionary<string, object>>();
     }
 }

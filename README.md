@@ -1,12 +1,27 @@
+<div align="center">
+
 # 🤖 AI SQL Assistant (v2.0 Enterprise Release)
 
 ### *Speak Human. Query Data.*
 
 An enterprise-grade, decoupled desktop application that translates natural language into executable T-SQL using open-source LLMs — protected by a multi-layer security shield, JWT authentication, and live cloud telemetry.
 
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![WPF](https://img.shields.io/badge/WPF-Desktop-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/desktop/wpf/)
+[![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://docs.microsoft.com/en-us/aspnet/core/)
+[![Azure SQL](https://img.shields.io/badge/Azure_SQL-003B57?style=for-the-badge&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com/en-us/products/azure-sql/database/)
+[![Llama](https://img.shields.io/badge/Llama_3.3-70B-FF6B35?style=for-the-badge&logo=meta&logoColor=white)](https://groq.com/)
+[![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
+
+<br/>
+
 > **"Never execute a query you didn't understand. Never understand a query without context."**
 
-[🚀 Quick Start](#-how-to-run-locally) · [🏗️ Architecture](#-enterprise-architecture) · [✨ Features](#-core-features) · [☁️ Cloud Deployment](#-cloud-deployment-azure) · [🛠️ Tech Stack](#-tech-stack)
+<br/>
+
+[🚀 Quick Start](#️-how-to-run-locally) · [🏗️ Architecture](#️-enterprise-architecture) · [✨ Features](#-core-features) · [☁️ Cloud Deployment](#-cloud-deployment-azure) · [🛠️ Tech Stack](#️-tech-stack)
+
+</div>
 
 ---
 
@@ -15,7 +30,7 @@ An enterprise-grade, decoupled desktop application that translates natural langu
 AI SQL Assistant bridges the gap between **human intent** and **database queries**.
 Instead of writing T-SQL by hand, analysts simply describe what they want in plain English — the system handles dynamic schema discovery, query generation, risk analysis, security validation, and audit logging automatically.
 
-Built for teams that need **AI-powered productivity without sacrificing governance**, v2.0 introduces full cloud-native capabilities, role-based JWT authentication, and real-time Application Insights telemetry.
+Built for teams that need **AI-powered productivity without sacrificing governance**, v2.0 introduces full cloud-native capabilities, role-based JWT authentication, real-time Application Insights telemetry, and advanced Few-Shot LLM learning capabilities.
 
 ---
 
@@ -47,6 +62,8 @@ graph TB
             Generate("POST /generate")
             Execute("POST /execute")
             AuditAPI("GET  /audit-logs")
+            HistoryAPI("GET /history")
+            TemplateAPI("POST /templates")
         end
 
         subgraph SERVICES ["Business Services"]
@@ -75,11 +92,11 @@ graph TB
     %% ─────────────────────────────────────────
     %% GENERATION FLOW
     %% ─────────────────────────────────────────
-    UI -->|"① Natural Language"| Generate
+    UI -->|"① Natural Language + Few-Shot Examples"| Generate
     Generate -->|"② Fetch Schema"| AzureSQL
     AzureSQL -.->|"INFORMATION_SCHEMA"| Generate
     Generate -->|"③ Prompt + Schema"| LLM
-    LLM -.->|"④ Raw T-SQL"| Generate
+    LLM -.->|"④ Raw T-SQL + NL Explanation"| Generate
     Generate -->|"⑤ Analyze"| RiskService
     RiskService -.->|"Risk Profile"| Generate
     Generate -->|"⑥ SQL + Risk Score"| RiskDash
@@ -123,7 +140,7 @@ graph TB
     class Security secureStyle
     class LLM externalStyle
     class AzureSQL,AppInsights dbStyle
-    class Generate,Execute,AuditAPI endpointStyle
+    class Generate,Execute,AuditAPI,HistoryAPI,TemplateAPI endpointStyle
     class EF apiStyle
 
 ```
@@ -157,8 +174,8 @@ sequenceDiagram
         Auth->>API: Identity injected ✅
         API->>DB: Fetch INFORMATION_SCHEMA
         DB-->>API: Table & Column definitions
-        API->>LLM: System prompt + schema + user query
-        LLM-->>API: Generated T-SQL
+        API->>LLM: System prompt + schema + user query (+ Few-Shot Examples)
+        LLM-->>API: Generated T-SQL (+ NL Explanation)
         API->>Risk: Analyze query
         Risk-->>API: Risk score (LOW / MEDIUM / CRITICAL)
         API--)Telemetry: TrackEvent("SqlGenerated")
@@ -194,6 +211,12 @@ sequenceDiagram
 ---
 
 ## ✨ Core Features
+
+### 🧠 Advanced AI Capabilities
+
+* **Few-Shot Prompting:** Users can supply examples of desired query inputs and outputs to train the LLM on-the-fly, vastly improving accuracy for complex, domain-specific databases.
+* **Natural Language Explanations:** The API can return a plain-English translation of the generated T-SQL, bridging the gap between non-technical users and advanced database querying.
+* **Query Templates & History:** Users can save their most successful queries as categorizable templates for team reuse, while the system automatically tracks a comprehensive history of all prompts and generated SQL.
 
 ### 🔑 Identity & Access Management (JWT)
 
@@ -244,8 +267,8 @@ To switch your native client interface to communicate with your live cloud envir
 // private readonly string _baseUrl = "https://localhost:7092/api/SqlAssistant";
 
 // Production Azure Cloud
-private readonly string _baseUrl = "https://your-app-service-name.azurewebsites.net/api/SqlAssistant";
-private readonly string _authUrl = "https://your-app-service-name.azurewebsites.net/api/Auth";
+private readonly string _baseUrl = "[https://your-app-service-name.azurewebsites.net/api/SqlAssistant](https://your-app-service-name.azurewebsites.net/api/SqlAssistant)";
+private readonly string _authUrl = "[https://your-app-service-name.azurewebsites.net/api/Auth](https://your-app-service-name.azurewebsites.net/api/Auth)";
 
 ```
 
@@ -289,7 +312,7 @@ private readonly string _authUrl = "https://your-app-service-name.azurewebsites.
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ai-sql-assistant.git
+git clone [https://github.com/your-username/ai-sql-assistant.git](https://github.com/your-username/ai-sql-assistant.git)
 cd ai-sql-assistant
 
 ```
